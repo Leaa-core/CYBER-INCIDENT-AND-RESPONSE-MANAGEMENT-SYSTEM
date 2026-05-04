@@ -73,3 +73,17 @@ export async function deleteResponseAction(incidentId: number, actionId: number)
     [incidentId, actionId],
   );
 }
+
+export interface Action {
+  id: number;
+  actionName: string;
+}
+
+export async function getActions(): Promise<Action[]> {
+  const pool = getDbPool();
+  const { rows } = await pool.query(`SELECT action_id, action_name FROM action ORDER BY action_name`);
+  return rows.map((r: Record<string, unknown>) => ({
+    id: Number(r.action_id),
+    actionName: String(r.action_name || 'Unknown'),
+  }));
+}

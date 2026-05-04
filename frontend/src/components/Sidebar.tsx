@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShieldAlert, LayoutDashboard, FileText, Activity, Settings, Users, AlertTriangle, Server, ClipboardList } from 'lucide-react';
+import { ShieldAlert, LayoutDashboard, Activity, Settings, Users, AlertTriangle, Server, ClipboardList } from 'lucide-react';
 
 export const Sidebar = () => {
   const pathname = usePathname();
@@ -15,7 +15,6 @@ export const Sidebar = () => {
     { href: '/incidents', label: 'Incidents', icon: Activity },
     { href: '/alerts', label: 'Alerts', icon: AlertTriangle },
     { href: '/assets', label: 'Assets', icon: Server },
-    { href: '/playbooks', label: 'Playbooks', icon: FileText },
     { href: '/team', label: 'Team', icon: Users },
     { href: '/audit-log', label: 'Audit Log', icon: ClipboardList },
     { href: '/settings', label: 'Settings', icon: Settings },

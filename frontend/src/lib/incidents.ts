@@ -9,6 +9,8 @@ export interface Incident {
   status: string;
   reportedTime: string | null;
   lastUpdated: string | null;
+  userId?: number;
+  assignedTo?: string;
 }
 
 export interface DashboardStats {
@@ -52,13 +54,16 @@ function normalizeIncident(row: Record<string, unknown>): Incident {
     status: String(row.status || 'New'),
     reportedTime: row.reported_time instanceof Date ? row.reported_time.toISOString() : (typeof row.reported_time === 'string' ? row.reported_time : null),
     lastUpdated: row.last_updated instanceof Date ? row.last_updated.toISOString() : (typeof row.last_updated === 'string' ? row.last_updated : null),
+    userId: row.user_id ? Number(row.user_id) : undefined,
+    assignedTo: row.username ? String(row.username) : undefined,
   };
 }
 
 export async function getIncidents(limit = 50): Promise<Incident[]> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT * FROM incident ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`,
+    `SELECT * FROM incident
+     ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`,
     [limit],
   );
   return rows.map(normalizeIncident);
@@ -69,7 +74,10 @@ export async function getIncidentById(id: string | number): Promise<Incident | n
   if (isNaN(numericId)) return null;
 
   const pool = getDbPool();
-  const { rows } = await pool.query(`SELECT * FROM incident WHERE incident_id = $1`, [numericId]);
+  const { rows } = await pool.query(
+    `SELECT * FROM incident WHERE incident_id = $1`,
+    [numericId]
+  );
 
   if (rows.length === 0) return null;
   return normalizeIncident(rows[0]);
@@ -82,7 +90,8 @@ export async function getDashboardOverview(limit = 5): Promise<{
   const pool = getDbPool();
 
   const [incidentsResult, statsResult, alertsResult, assetsResult, teamResult] = await Promise.all([
-    pool.query(`SELECT * FROM incident ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`, [limit]),
+    pool.query(`SELECT * FROM incident
+               ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`, [limit]),
     pool.query(`SELECT 
       COUNT(*) FILTER (WHERE status NOT IN ('Resolved', 'Closed')) AS active_incidents,
       COUNT(*) AS total_incidents,
@@ -136,7 +145,7 @@ export async function createIncident(input: CreateIncidentInput): Promise<Incide
   return normalizeIncident(rows[0]);
 }
 
-export async function updateIncident(id: number, updates: { status?: string; incidentType?: string }): Promise<Incident> {
+export async function updateIncident(id: number, updates: { status?: string; incidentType?: string; userId?: number }): Promise<Incident> {
   const pool = getDbPool();
   const sets: string[] = [];
   const values: unknown[] = [];
@@ -150,6 +159,7 @@ export async function updateIncident(id: number, updates: { status?: string; inc
     sets.push(`incident_type = $${idx++}`);
     values.push(updates.incidentType);
   }
+  // Note: userId support requires database schema update (add user_id column to incident table)
 
   sets.push(`last_updated = NOW()`);
   values.push(id);

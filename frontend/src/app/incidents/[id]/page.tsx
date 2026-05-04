@@ -2,9 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getIncidentById, formatIncidentTimestamp, formatRelativeTime } from '@/lib/incidents';
-import { getResponseActions } from '@/lib/response-actions';
+import { getResponseActions, getActions } from '@/lib/response-actions';
 import { getIncidentStatuses } from '@/lib/lookups';
-import { updateIncidentAction, deleteIncidentAction } from '@/app/incidents/actions';
+import { getTeamMembers } from '@/lib/team';
+import { updateIncidentAction, deleteIncidentAction, createResponseActionAction, assignIncidentAction } from '@/app/incidents/actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +16,11 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
     notFound();
   }
 
-  const [responseActions, statuses] = await Promise.all([
+  const [responseActions, statuses, actions, teamMembers] = await Promise.all([
     getResponseActions(incident.id),
     getIncidentStatuses(),
+    getActions(),
+    getTeamMembers(),
   ]);
 
   return (
@@ -63,7 +66,45 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
             </form>
           </div>
 
-          {/* Response Actions */}
+          {/* Record Response Action */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <h2 className="text-lg font-black text-black uppercase mb-4">Record Response Action</h2>
+            <form action={createResponseActionAction} className="space-y-4">
+              <input type="hidden" name="incidentId" value={incident.id} />
+              
+              <div className="space-y-2">
+                <label htmlFor="actionId" className="block text-sm font-bold text-gray-500 uppercase">Action Type</label>
+                <select
+                  id="actionId"
+                  name="actionId"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
+                >
+                  <option value="">Select an action</option>
+                  {actions.map((a) => (
+                    <option key={a.id} value={a.id}>{a.actionName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="actionDescription" className="block text-sm font-bold text-gray-500 uppercase">Description</label>
+                <textarea
+                  id="actionDescription"
+                  name="actionDescription"
+                  placeholder="Details about this response action..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
+                />
+              </div>
+
+              <button type="submit" className="w-full bg-black text-white px-4 py-2 text-sm font-bold rounded-md hover:bg-gray-800 transition-colors">
+                RECORD ACTION
+              </button>
+            </form>
+          </div>
+
+          {/* Response Actions History */}
           <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
             <h2 className="text-lg font-black text-black uppercase mb-4">Response Actions</h2>
             <div className="space-y-4">
@@ -108,6 +149,40 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
               <p className="text-xs font-bold text-gray-500 uppercase">Last Updated</p>
               <p className="font-medium text-gray-900 mt-1">{formatIncidentTimestamp(incident.lastUpdated)}</p>
             </div>
+          </div>
+
+          {/* Assign Person */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-black text-black uppercase mb-4">Assigned To</h2>
+            
+            <div className="space-y-2">
+              <p className="text-sm font-bold text-gray-900">
+                {incident.assignedTo ? incident.assignedTo : 'Unassigned'}
+              </p>
+            </div>
+
+            <form action={assignIncidentAction} className="space-y-3">
+              <input type="hidden" name="incidentId" value={incident.id} />
+              
+              <div className="space-y-2">
+                <label htmlFor="userId" className="block text-xs font-bold text-gray-500 uppercase">Assign Person</label>
+                <select
+                  id="userId"
+                  name="userId"
+                  defaultValue={incident.userId || ''}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
+                >
+                  <option value="">Unassigned</option>
+                  {teamMembers.map((member) => (
+                    <option key={member.id} value={member.id}>{member.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button type="submit" className="w-full bg-black text-white px-4 py-2 text-sm font-bold rounded-md hover:bg-gray-800 transition-colors">
+                ASSIGN
+              </button>
+            </form>
           </div>
         </div>
       </div>
