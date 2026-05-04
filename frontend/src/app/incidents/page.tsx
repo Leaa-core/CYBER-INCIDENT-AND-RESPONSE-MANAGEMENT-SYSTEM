@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { getIncidents, formatRelativeTime } from '@/lib/incidents';
+import { getIncidents, formatRelativeTime, formatIncidentTimestamp } from '@/lib/incidents';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +48,7 @@ export default async function IncidentsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.reportedTime)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.lastUpdated)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{formatIncidentTimestamp(incident.lastUpdated)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                     <Link href={`/incidents/${incident.id}`} className="text-black font-bold hover:underline">VIEW</Link>
                   </td>

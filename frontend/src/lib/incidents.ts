@@ -54,16 +54,18 @@ function normalizeIncident(row: Record<string, unknown>): Incident {
     status: String(row.status || 'New'),
     reportedTime: row.reported_time instanceof Date ? row.reported_time.toISOString() : (typeof row.reported_time === 'string' ? row.reported_time : null),
     lastUpdated: row.last_updated instanceof Date ? row.last_updated.toISOString() : (typeof row.last_updated === 'string' ? row.last_updated : null),
-    userId: row.user_id ? Number(row.user_id) : undefined,
-    assignedTo: row.username ? String(row.username) : undefined,
+    userId: row.user_id != null ? Number(row.user_id) : undefined,
+    assignedTo: row.assigned_username ? String(row.assigned_username) : (row.username ? String(row.username) : undefined),
   };
 }
 
 export async function getIncidents(limit = 50): Promise<Incident[]> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT * FROM incident
-     ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`,
+    `SELECT i.*, u.username AS assigned_username
+     FROM incident i
+     LEFT JOIN "user" u ON i.user_id = u.user_id
+     ORDER BY COALESCE(i.last_updated, i.reported_time) DESC NULLS LAST LIMIT $1`,
     [limit],
   );
   return rows.map(normalizeIncident);
@@ -75,7 +77,10 @@ export async function getIncidentById(id: string | number): Promise<Incident | n
 
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT * FROM incident WHERE incident_id = $1`,
+    `SELECT i.*, u.username AS assigned_username
+     FROM incident i
+     LEFT JOIN "user" u ON i.user_id = u.user_id
+     WHERE i.incident_id = $1`,
     [numericId]
   );
 
@@ -159,7 +164,10 @@ export async function updateIncident(id: number, updates: { status?: string; inc
     sets.push(`incident_type = $${idx++}`);
     values.push(updates.incidentType);
   }
-  // Note: userId support requires database schema update (add user_id column to incident table)
+  if (updates.userId !== undefined) {
+    sets.push(`user_id = $${idx++}`);
+    values.push(updates.userId);
+  }
 
   sets.push(`last_updated = NOW()`);
   values.push(id);
