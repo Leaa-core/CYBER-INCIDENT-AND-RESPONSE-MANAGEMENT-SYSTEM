@@ -2,39 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createIncident, type IncidentSeverity } from '@/lib/incidents';
+import { createIncident, updateIncident, deleteIncident } from '@/lib/incidents';
 
 function readValue(formData: FormData, key: string): string {
   const value = formData.get(key);
-
   return typeof value === 'string' ? value : '';
-}
-
-function normalizeSeverity(value: string): IncidentSeverity {
-  const normalized = value.trim().toLowerCase();
-
-  if (normalized === 'critical') {
-    return 'Critical';
-  }
-
-  if (normalized === 'high') {
-    return 'High';
-  }
-
-  if (normalized === 'medium') {
-    return 'Medium';
-  }
-
-  return 'Low';
 }
 
 export async function createIncidentAction(formData: FormData) {
   const incident = await createIncident({
-    title: readValue(formData, 'title'),
-    severity: normalizeSeverity(readValue(formData, 'severity')),
     incidentType: readValue(formData, 'incidentType'),
-    description: readValue(formData, 'description'),
-    assignee: readValue(formData, 'assignee'),
     status: readValue(formData, 'status') || 'New',
   });
 
@@ -43,4 +20,35 @@ export async function createIncidentAction(formData: FormData) {
   revalidatePath(`/incidents/${incident.id}`);
 
   redirect(`/incidents/${incident.id}`);
+}
+
+export async function updateIncidentAction(formData: FormData) {
+  const id = parseInt(readValue(formData, 'id'), 10);
+  if (isNaN(id)) throw new Error('Invalid incident ID');
+
+  const status = readValue(formData, 'status');
+  const incidentType = readValue(formData, 'incidentType');
+
+  await updateIncident(id, {
+    ...(status ? { status } : {}),
+    ...(incidentType ? { incidentType } : {}),
+  });
+
+  revalidatePath('/');
+  revalidatePath('/incidents');
+  revalidatePath(`/incidents/${id}`);
+
+  redirect(`/incidents/${id}`);
+}
+
+export async function deleteIncidentAction(formData: FormData) {
+  const id = parseInt(readValue(formData, 'id'), 10);
+  if (isNaN(id)) throw new Error('Invalid incident ID');
+
+  await deleteIncident(id);
+
+  revalidatePath('/');
+  revalidatePath('/incidents');
+
+  redirect('/incidents');
 }

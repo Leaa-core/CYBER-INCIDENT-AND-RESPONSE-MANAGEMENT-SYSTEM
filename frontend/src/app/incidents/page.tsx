@@ -22,39 +22,33 @@ export default async function IncidentsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Title</th>
+                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Severity</th>
-                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Assignee</th>
-                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Time</th>
+                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Reported</th>
+                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Last Updated</th>
                 <th className="px-6 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {incidents.length === 0 ? (
                 <tr>
-                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={7}>
+                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={6}>
                     No incidents are stored in the database yet.
                   </td>
                 </tr>
               ) : incidents.map((incident) => (
                 <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{incident.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{incident.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{incident.displayId}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{incident.incidentType}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      incident.status === 'Resolved' ? 'bg-gray-100 text-gray-800' : 'bg-black text-white'
+                      incident.status === 'Resolved' || incident.status === 'Closed' ? 'bg-gray-100 text-gray-800' : 'bg-black text-white'
                     }`}>
                       {incident.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`font-bold ${incident.severity === 'Critical' ? 'text-black underline decoration-2' : incident.severity === 'High' ? 'text-gray-900' : 'text-gray-500'}`}>
-                      {incident.severity.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{incident.assignee}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.updatedAt ?? incident.createdAt)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.reportedTime)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.lastUpdated)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                     <Link href={`/incidents/${incident.id}`} className="text-black font-bold hover:underline">VIEW</Link>
                   </td>

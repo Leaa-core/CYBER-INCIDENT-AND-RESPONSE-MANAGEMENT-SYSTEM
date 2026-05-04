@@ -3,15 +3,12 @@ import { getDbPool } from '@/lib/db';
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface Incident {
-  id: string;
-  title: string;
-  status: string;
-  severity: IncidentSeverity;
-  assignee: string;
+  id: number;
+  displayId: string;
   incidentType: string;
-  description: string;
-  createdAt: string | null;
-  updatedAt: string | null;
+  status: string;
+  reportedTime: string | null;
+  lastUpdated: string | null;
 }
 
 export interface DashboardStats {
@@ -19,139 +16,14 @@ export interface DashboardStats {
   criticalAlerts: number;
   resolvedToday: number;
   avgResponse: string;
+  totalIncidents: number;
+  totalAssets: number;
+  totalTeamMembers: number;
 }
 
 export interface CreateIncidentInput {
-  title: string;
-  severity: IncidentSeverity;
   incidentType: string;
-  description: string;
-  assignee: string;
   status?: string;
-}
-
-type IncidentRow = Record<string, unknown>;
-
-const INCIDENTS_TABLE = 'incidents';
-
-let incidentColumnsCache: Set<string> | null = null;
-
-function readString(row: IncidentRow, keys: string[], fallback = ''): string {
-  for (const key of keys) {
-    const value = row[key];
-
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value;
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-  }
-
-  return fallback;
-}
-
-function readDate(row: IncidentRow, keys: string[]): string | null {
-  for (const key of keys) {
-    const value = row[key];
-
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-
-    if (typeof value === 'string' && value.trim().length > 0) {
-      const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-    }
-  }
-
-  return null;
-}
-
-function normalizeSeverity(value: string): IncidentSeverity {
-  const severity = value.trim().toLowerCase();
-
-  if (severity === 'critical') {
-    return 'Critical';
-  }
-
-  if (severity === 'high') {
-    return 'High';
-  }
-
-  if (severity === 'medium') {
-    return 'Medium';
-  }
-
-  return 'Low';
-}
-
-function normalizeStatus(value: string): string {
-  const status = value.trim();
-
-  if (!status) {
-    return 'New';
-  }
-
-  const normalized = status.toLowerCase();
-
-  if (normalized === 'in progress') {
-    return 'In Progress';
-  }
-
-  if (normalized === 'investigating') {
-    return 'Investigating';
-  }
-
-  if (normalized === 'triaged') {
-    return 'Triaged';
-  }
-
-  if (normalized === 'resolved') {
-    return 'Resolved';
-  }
-
-  if (normalized === 'closed') {
-    return 'Closed';
-  }
-
-  if (normalized === 'open') {
-    return 'Open';
-  }
-
-  if (normalized === 'new') {
-    return 'New';
-  }
-
-  return status;
-}
-
-function normalizeIncidentId(value: string): string {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return 'INC-000';
-  }
-
-  if (/^INC-/i.test(trimmed)) {
-    return trimmed.toUpperCase();
-  }
-
-  if (/^\d+$/.test(trimmed)) {
-    return `INC-${trimmed.padStart(3, '0')}`;
-  }
-
-  return trimmed;
 }
 
 function formatDuration(milliseconds: number): string {
@@ -171,202 +43,141 @@ function formatDuration(milliseconds: number): string {
   return `${Math.max(1, Math.round(totalDays))}d`;
 }
 
-function parseTime(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-function normalizeIncident(row: IncidentRow): Incident {
-  const incidentId = readString(row, ['reference', 'public_id', 'incident_id', 'id']);
-  const title = readString(row, ['title', 'name'], 'Untitled incident');
-  const status = normalizeStatus(readString(row, ['status'], 'New'));
-  const severity = normalizeSeverity(readString(row, ['severity'], 'Low'));
-  const assignee = readString(row, ['assignee', 'owner', 'assigned_to'], 'Unassigned');
-  const incidentType = readString(row, ['incident_type', 'type', 'category'], 'General');
-  const description = readString(row, ['description', 'details', 'summary'], '');
-  const createdAt = readDate(row, ['created_at', 'createdAt', 'inserted_at', 'timestamp']);
-  const updatedAt = readDate(row, ['updated_at', 'updatedAt', 'modified_at']);
-
+function normalizeIncident(row: Record<string, unknown>): Incident {
+  const id = Number(row.incident_id) || 0;
   return {
-    id: normalizeIncidentId(incidentId),
-    title,
-    status,
-    severity,
-    assignee,
-    incidentType,
-    description,
-    createdAt,
-    updatedAt,
+    id,
+    displayId: `INC-${String(id).padStart(3, '0')}`,
+    incidentType: String(row.incident_type || 'Unknown'),
+    status: String(row.status || 'New'),
+    reportedTime: row.reported_time instanceof Date ? row.reported_time.toISOString() : (typeof row.reported_time === 'string' ? row.reported_time : null),
+    lastUpdated: row.last_updated instanceof Date ? row.last_updated.toISOString() : (typeof row.last_updated === 'string' ? row.last_updated : null),
   };
 }
 
-async function getIncidentColumns(): Promise<Set<string>> {
-  if (incidentColumnsCache) {
-    return incidentColumnsCache;
-  }
-
-  const pool = getDbPool();
-  const { rows } = await pool.query<{ column_name: string }>(
-    `
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = $1
-    `,
-    [INCIDENTS_TABLE],
-  );
-
-  incidentColumnsCache = new Set(rows.map((row: { column_name: string }) => row.column_name));
-  return incidentColumnsCache;
-}
-
-async function queryAllIncidents(): Promise<Incident[]> {
-  const pool = getDbPool();
-  const { rows } = await pool.query<IncidentRow>(`SELECT * FROM ${INCIDENTS_TABLE}`);
-
-  return rows
-    .map((row: IncidentRow) => normalizeIncident(row))
-    .sort((left: Incident, right: Incident) => {
-      const rightTime = parseTime(right.updatedAt ?? right.createdAt) ?? 0;
-      const leftTime = parseTime(left.updatedAt ?? left.createdAt) ?? 0;
-
-      return rightTime - leftTime;
-    });
-}
-
 export async function getIncidents(limit = 50): Promise<Incident[]> {
-  const incidents = await queryAllIncidents();
-  return incidents.slice(0, limit);
+  const pool = getDbPool();
+  const { rows } = await pool.query(
+    `SELECT * FROM incident ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`,
+    [limit],
+  );
+  return rows.map(normalizeIncident);
 }
 
-export async function getIncidentById(id: string): Promise<Incident | null> {
-  const targetId = normalizeIncidentId(id);
-  const incidents = await queryAllIncidents();
+export async function getIncidentById(id: string | number): Promise<Incident | null> {
+  const numericId = typeof id === 'string' ? parseInt(id.replace(/^INC-/i, ''), 10) : id;
+  if (isNaN(numericId)) return null;
 
-  return incidents.find((incident) => incident.id === targetId || incident.id === id) ?? null;
+  const pool = getDbPool();
+  const { rows } = await pool.query(`SELECT * FROM incident WHERE incident_id = $1`, [numericId]);
+
+  if (rows.length === 0) return null;
+  return normalizeIncident(rows[0]);
 }
 
-export async function getDashboardOverview(limit = 4): Promise<{
+export async function getDashboardOverview(limit = 5): Promise<{
   incidents: Incident[];
   stats: DashboardStats;
 }> {
-  const incidents = await queryAllIncidents();
-  const recentIncidents = incidents.slice(0, limit);
-  const now = new Date();
+  const pool = getDbPool();
 
-  const activeIncidents = incidents.filter((incident) => incident.status.toLowerCase() !== 'resolved').length;
-  const criticalAlerts = incidents.filter(
-    (incident) => incident.severity === 'Critical' && incident.status.toLowerCase() !== 'resolved',
-  ).length;
+  const [incidentsResult, statsResult, alertsResult, assetsResult, teamResult] = await Promise.all([
+    pool.query(`SELECT * FROM incident ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`, [limit]),
+    pool.query(`SELECT 
+      COUNT(*) FILTER (WHERE status NOT IN ('Resolved', 'Closed')) AS active_incidents,
+      COUNT(*) AS total_incidents,
+      COUNT(*) FILTER (WHERE status = 'Resolved' AND last_updated::date = CURRENT_DATE) AS resolved_today
+    FROM incident`),
+    pool.query(`SELECT COUNT(*) AS cnt FROM alert WHERE alert_time > NOW() - INTERVAL '24 hours'`),
+    pool.query(`SELECT COUNT(*) AS cnt FROM asset`),
+    pool.query(`SELECT COUNT(*) AS cnt FROM "user"`),
+  ]);
 
-  const resolvedToday = incidents.filter((incident) => {
-    if (incident.status.toLowerCase() !== 'resolved' || !incident.updatedAt) {
-      return false;
-    }
+  const incidents = incidentsResult.rows.map(normalizeIncident);
+  const stat = statsResult.rows[0] || {};
 
-    const updatedAt = new Date(incident.updatedAt);
+  const resolvedIncidents = incidentsResult.rows.filter(
+    (r: Record<string, unknown>) => r.status === 'Resolved' && r.reported_time && r.last_updated
+  );
 
-    return (
-      updatedAt.getFullYear() === now.getFullYear() &&
-      updatedAt.getMonth() === now.getMonth() &&
-      updatedAt.getDate() === now.getDate()
-    );
-  }).length;
-
-  const responseDurations = incidents
-    .filter((incident) => incident.status.toLowerCase() === 'resolved' && incident.createdAt && incident.updatedAt)
-    .map((incident) => {
-      const createdAt = Date.parse(incident.createdAt as string);
-      const updatedAt = Date.parse(incident.updatedAt as string);
-
-      return Math.max(0, updatedAt - createdAt);
-    })
-    .filter((duration) => duration > 0);
+  const responseDurations = resolvedIncidents.map((r: Record<string, unknown>) => {
+    const start = new Date(r.reported_time as string).getTime();
+    const end = new Date(r.last_updated as string).getTime();
+    return Math.max(0, end - start);
+  }).filter((d: number) => d > 0);
 
   const avgResponse = responseDurations.length > 0
-    ? formatDuration(responseDurations.reduce((sum, duration) => sum + duration, 0) / responseDurations.length)
+    ? formatDuration(responseDurations.reduce((sum: number, d: number) => sum + d, 0) / responseDurations.length)
     : '—';
 
   return {
-    incidents: recentIncidents,
+    incidents,
     stats: {
-      activeIncidents,
-      criticalAlerts,
-      resolvedToday,
+      activeIncidents: Number(stat.active_incidents) || 0,
+      criticalAlerts: Number(alertsResult.rows[0]?.cnt) || 0,
+      resolvedToday: Number(stat.resolved_today) || 0,
       avgResponse,
+      totalIncidents: Number(stat.total_incidents) || 0,
+      totalAssets: Number(assetsResult.rows[0]?.cnt) || 0,
+      totalTeamMembers: Number(teamResult.rows[0]?.cnt) || 0,
     },
   };
 }
 
 export async function createIncident(input: CreateIncidentInput): Promise<Incident> {
-  const title = input.title.trim();
-
-  if (!title) {
-    throw new Error('Incident title is required');
-  }
-
-  const severity = normalizeSeverity(input.severity);
-  const incidentType = input.incidentType.trim() || 'General';
-  const description = input.description.trim();
-  const assignee = input.assignee.trim() || 'Unassigned';
-  const status = normalizeStatus(input.status?.trim() || 'New');
-
-  const columns = await getIncidentColumns();
-  const insertColumns: string[] = [];
-  const values: unknown[] = [];
-
-  const addColumn = (column: string, value: unknown) => {
-    if (columns.has(column)) {
-      insertColumns.push(column);
-      values.push(value);
-    }
-  };
-
-  addColumn('title', title);
-  addColumn('description', description);
-  addColumn('status', status);
-  addColumn('severity', severity);
-  addColumn('assignee', assignee);
-
-  if (columns.has('incident_type')) {
-    addColumn('incident_type', incidentType);
-  } else if (columns.has('type')) {
-    addColumn('type', incidentType);
-  }
-
-  if (insertColumns.length === 0) {
-    throw new Error('The incidents table does not expose any writable columns');
-  }
-
-  const placeholders = insertColumns.map((_, index) => `$${index + 1}`).join(', ');
   const pool = getDbPool();
-  const { rows } = await pool.query<IncidentRow>(
-    `INSERT INTO ${INCIDENTS_TABLE} (${insertColumns.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+  const { rows } = await pool.query(
+    `INSERT INTO incident (incident_type, status, reported_time, last_updated) 
+     VALUES ($1, $2, NOW(), NOW()) RETURNING *`,
+    [input.incidentType, input.status || 'New'],
+  );
+
+  if (!rows[0]) throw new Error('Failed to create incident');
+  return normalizeIncident(rows[0]);
+}
+
+export async function updateIncident(id: number, updates: { status?: string; incidentType?: string }): Promise<Incident> {
+  const pool = getDbPool();
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let idx = 1;
+
+  if (updates.status) {
+    sets.push(`status = $${idx++}`);
+    values.push(updates.status);
+  }
+  if (updates.incidentType) {
+    sets.push(`incident_type = $${idx++}`);
+    values.push(updates.incidentType);
+  }
+
+  sets.push(`last_updated = NOW()`);
+  values.push(id);
+
+  const { rows } = await pool.query(
+    `UPDATE incident SET ${sets.join(', ')} WHERE incident_id = $${idx} RETURNING *`,
     values,
   );
 
-  const insertedIncident = rows[0];
+  if (!rows[0]) throw new Error('Incident not found');
+  return normalizeIncident(rows[0]);
+}
 
-  if (!insertedIncident) {
-    throw new Error('Failed to create incident');
-  }
-
-  return normalizeIncident(insertedIncident);
+export async function deleteIncident(id: number): Promise<void> {
+  const pool = getDbPool();
+  // Delete from junction tables first
+  await pool.query(`DELETE FROM incident_category WHERE incident_id = $1`, [id]);
+  await pool.query(`DELETE FROM incident_team WHERE incident_id = $1`, [id]);
+  await pool.query(`DELETE FROM incident_log WHERE incident_id = $1`, [id]);
+  await pool.query(`DELETE FROM response_action WHERE incident_id = $1`, [id]);
+  await pool.query(`DELETE FROM incident WHERE incident_id = $1`, [id]);
 }
 
 export function formatRelativeTime(value: string | null): string {
-  if (!value) {
-    return 'Recently';
-  }
+  if (!value) return 'Recently';
 
   const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    return 'Recently';
-  }
+  if (Number.isNaN(timestamp)) return 'Recently';
 
   const differenceInMinutes = Math.max(1, Math.round((Date.now() - timestamp) / 60000));
 
@@ -385,15 +196,10 @@ export function formatRelativeTime(value: string | null): string {
 }
 
 export function formatIncidentTimestamp(value: string | null): string {
-  if (!value) {
-    return 'Unknown';
-  }
+  if (!value) return 'Unknown';
 
   const timestamp = Date.parse(value);
-
-  if (Number.isNaN(timestamp)) {
-    return value;
-  }
+  if (Number.isNaN(timestamp)) return value;
 
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',

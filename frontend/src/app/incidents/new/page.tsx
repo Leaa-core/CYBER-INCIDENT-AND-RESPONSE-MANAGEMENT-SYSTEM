@@ -1,8 +1,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { createIncidentAction } from '@/app/incidents/actions';
+import { getIncidentTypes, getIncidentStatuses } from '@/lib/lookups';
 
-export default function NewIncidentPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function NewIncidentPage() {
+  const [incidentTypes, statuses] = await Promise.all([
+    getIncidentTypes(),
+    getIncidentStatuses(),
+  ]);
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center space-x-4">
@@ -17,68 +25,30 @@ export default function NewIncidentPage() {
           <input type="hidden" name="status" value="New" />
 
           <div className="space-y-2">
-            <label htmlFor="title" className="block text-sm font-black text-gray-900 uppercase">Incident Title</label>
-            <input
-              type="text"
-              id="title"
-              name="title"
+            <label htmlFor="incidentType" className="block text-sm font-black text-gray-900 uppercase">Incident Type</label>
+            <select
+              id="incidentType"
+              name="incidentType"
               required
-              placeholder="e.g. Unauthorized Access Attempt"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="severity" className="block text-sm font-black text-gray-900 uppercase">Severity</label>
-              <select
-                id="severity"
-                name="severity"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
-              >
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-                <option>Critical</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="type" className="block text-sm font-black text-gray-900 uppercase">Incident Type</label>
-              <select
-                id="type"
-                name="incidentType"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
-              >
-                <option>Malware</option>
-                <option>Phishing</option>
-                <option>Data Breach</option>
-                <option>DDoS</option>
-                <option>Other</option>
-              </select>
-            </div>
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
+            >
+              {incidentTypes.map((type) => (
+                <option key={type.id} value={type.typeName}>{type.typeName}</option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="assignee" className="block text-sm font-black text-gray-900 uppercase">Assignee</label>
-            <input
-              type="text"
-              id="assignee"
-              name="assignee"
-              placeholder="e.g. Security Team"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="description" className="block text-sm font-black text-gray-900 uppercase">Description</label>
-            <textarea
-              id="description"
-              name="description"
-              rows={4}
-              required
-              placeholder="Provide a detailed description of the incident..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
-            />
+            <label htmlFor="status" className="block text-sm font-black text-gray-900 uppercase">Initial Status</label>
+            <select
+              id="status"
+              name="status"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
+            >
+              {statuses.map((s) => (
+                <option key={s.id} value={s.statusName}>{s.statusName}</option>
+              ))}
+            </select>
           </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">

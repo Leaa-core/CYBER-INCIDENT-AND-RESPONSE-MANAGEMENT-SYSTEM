@@ -1,80 +1,205 @@
-"use client";
+import React from 'react';
+import { getDbPool } from '@/lib/db';
+import { getAssets, getLocations, getIncidentTypes, getSeverityLevels, getIncidentStatuses } from '@/lib/lookups';
+import { getTeamMembers } from '@/lib/team';
 
-import React, { useState } from 'react';
+export const dynamic = 'force-dynamic';
 
-export default function SettingsPage() {
-  const [emailAlerts, setEmailAlerts] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(false);
+async function testConnection(): Promise<{ connected: boolean; version: string; tables: number }> {
+  try {
+    const pool = getDbPool();
+    const versionResult = await pool.query('SELECT version()');
+    const tablesResult = await pool.query(`
+      SELECT COUNT(*) AS cnt 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    return {
+      connected: true,
+      version: String(versionResult.rows[0]?.version || '').split(' ').slice(0, 2).join(' '),
+      tables: Number(tablesResult.rows[0]?.cnt || 0),
+    };
+  } catch {
+    return { connected: false, version: '', tables: 0 };
+  }
+}
+
+export default async function SettingsPage() {
+  const [dbStatus, assets, locations, incidentTypes, severityLevels, statuses, members] = await Promise.all([
+    testConnection(),
+    getAssets(),
+    getLocations(),
+    getIncidentTypes(),
+    getSeverityLevels(),
+    getIncidentStatuses(),
+    getTeamMembers(),
+  ]);
 
   return (
     <div className="max-w-4xl space-y-6">
       <h1 className="text-2xl font-black uppercase tracking-tight">System Settings</h1>
 
+      {/* Database Connection Status */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-black text-black uppercase mb-1">General Profile</h2>
-          <p className="text-sm font-medium text-gray-500">Update your organization details and system preferences.</p>
-        </div>
-        <div className="p-6 space-y-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-black text-gray-900 uppercase">Organization Name</label>
-            <input
-              type="text"
-              defaultValue="Acme Corp Security"
-              className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium text-black bg-white"
-            />
-          </div>
-          <div className="space-y-2 flex flex-col">
-            <label className="block text-sm font-black text-gray-900 uppercase">Data Retention Period (Days)</label>
-            <input
-              type="number"
-              defaultValue={90}
-              className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium text-black bg-white"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-black text-black uppercase mb-1">Notifications</h2>
-          <p className="text-sm font-medium text-gray-500">Control how and when you receive system alerts.</p>
+          <h2 className="text-lg font-black text-black uppercase mb-1">Database Connection</h2>
+          <p className="text-sm font-medium text-gray-500">Supabase PostgreSQL backend status.</p>
         </div>
         <div className="p-6 space-y-4">
-          <div className="flex items-center justify-between max-w-md">
-            <div>
-              <p className="font-bold text-sm text-gray-900">Email Alerts</p>
-              <p className="text-xs text-gray-500 font-medium">Receive critical alerts via email.</p>
-            </div>
-            <button 
-              onClick={() => setEmailAlerts(!emailAlerts)}
-              className={`${emailAlerts ? 'bg-black text-white border-transparent' : 'border border-gray-300 text-gray-600 hover:border-black hover:text-black'} px-3 py-1 font-bold text-xs rounded-full transition-colors w-24`}
-            >
-              {emailAlerts ? 'ENABLED' : 'DISABLED'}
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className={`h-3 w-3 rounded-full ${dbStatus.connected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+            <span className="text-sm font-bold text-gray-900">
+              {dbStatus.connected ? 'CONNECTED' : 'DISCONNECTED'}
+            </span>
           </div>
-          <div className="flex items-center justify-between max-w-md border-t border-gray-100 pt-4">
-            <div>
-              <p className="font-bold text-sm text-gray-900">SMS Notifications</p>
-              <p className="text-xs text-gray-500 font-medium">Text messages for Sev-1 incidents.</p>
+          {dbStatus.connected && (
+            <div className="grid grid-cols-2 gap-4 mt-3">
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Database Version</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{dbStatus.version}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Tables</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{dbStatus.tables} tables</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Host</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">db.pkeallwuvbcckrvxwdrr.supabase.co</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Database</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">postgres</p>
+              </div>
             </div>
-            <button 
-              onClick={() => setSmsAlerts(!smsAlerts)}
-              className={`${smsAlerts ? 'bg-black text-white border-transparent' : 'border border-gray-300 text-gray-600 hover:border-black hover:text-black'} px-3 py-1 font-bold text-xs rounded-full transition-colors w-24`}
-            >
-              {smsAlerts ? 'ENABLED' : 'DISABLED'}
-            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Data Overview */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-black text-black uppercase mb-1">Data Overview</h2>
+          <p className="text-sm font-medium text-gray-500">Summary of all data stored in the system.</p>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Users</p>
+              <p className="text-2xl font-black text-black mt-1">{members.length}</p>
+            </div>
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Assets</p>
+              <p className="text-2xl font-black text-black mt-1">{assets.length}</p>
+            </div>
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Locations</p>
+              <p className="text-2xl font-black text-black mt-1">{locations.length}</p>
+            </div>
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Incident Types</p>
+              <p className="text-2xl font-black text-black mt-1">{incidentTypes.length}</p>
+            </div>
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Severity Levels</p>
+              <p className="text-2xl font-black text-black mt-1">{severityLevels.length}</p>
+            </div>
+            <div className="border border-gray-200 rounded-md p-4">
+              <p className="text-xs font-bold text-gray-500 uppercase">Statuses</p>
+              <p className="text-2xl font-black text-black mt-1">{statuses.length}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button 
-          onClick={() => alert("Settings Saved!")}
-          className="bg-black text-white px-6 py-2 text-sm font-bold rounded-md hover:bg-gray-800 transition-colors"
-        >
-          SAVE CHANGES
-        </button>
+      {/* Assets */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-black text-black uppercase mb-1">Tracked Assets</h2>
+          <p className="text-sm font-medium text-gray-500">IT assets monitored by the system.</p>
+        </div>
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Asset Name</th>
+              <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Criticality</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {assets.length === 0 ? (
+              <tr>
+                <td className="px-6 py-8 text-center text-sm text-gray-500" colSpan={3}>No assets configured.</td>
+              </tr>
+            ) : assets.map((asset) => (
+              <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 text-sm font-bold text-black">{asset.assetName}</td>
+                <td className="px-6 py-4 text-sm text-gray-600 font-medium">{asset.assetType}</td>
+                <td className="px-6 py-4 text-sm">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    asset.criticality === 'Critical' ? 'bg-black text-white' :
+                    asset.criticality === 'High' ? 'border border-black text-black' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {asset.criticality.toUpperCase()}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Locations */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-black text-black uppercase mb-1">Locations</h2>
+          <p className="text-sm font-medium text-gray-500">Infrastructure locations monitored.</p>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-wrap gap-2">
+            {locations.length === 0 ? (
+              <p className="text-sm text-gray-500 font-medium">No locations configured.</p>
+            ) : locations.map((loc) => (
+              <span key={loc.id} className="px-3 py-1.5 bg-gray-100 border border-gray-200 text-xs font-bold text-gray-800 rounded-sm">
+                {loc.locationName}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Configuration lookup tables */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-sm font-black text-black uppercase">Incident Types</h3>
+          </div>
+          <div className="p-4 space-y-1">
+            {incidentTypes.map((t) => (
+              <div key={t.id} className="text-sm font-medium text-gray-700 py-1 border-b border-gray-50 last:border-0">{t.typeName}</div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-sm font-black text-black uppercase">Severity Levels</h3>
+          </div>
+          <div className="p-4 space-y-1">
+            {severityLevels.map((s) => (
+              <div key={s.id} className="text-sm font-medium text-gray-700 py-1 border-b border-gray-50 last:border-0">{s.severityName}</div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-sm font-black text-black uppercase">Statuses</h3>
+          </div>
+          <div className="p-4 space-y-1">
+            {statuses.map((s) => (
+              <div key={s.id} className="text-sm font-medium text-gray-700 py-1 border-b border-gray-50 last:border-0">{s.statusName}</div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
