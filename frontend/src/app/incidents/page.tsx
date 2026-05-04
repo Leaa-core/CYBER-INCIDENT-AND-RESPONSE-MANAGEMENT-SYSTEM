@@ -1,14 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
+import { getIncidents, formatRelativeTime } from '@/lib/incidents';
 
-export default function IncidentsPage() {
-  const incidents = [
-    { id: 'INC-001', title: 'Unauthorized Access Attempt', status: 'In Progress', severity: 'Critical', time: '10 mins ago', assignee: 'Alice M.' },
-    { id: 'INC-002', title: 'Malware Detected on ENDPOINT-4', status: 'Investigating', severity: 'High', time: '1 hour ago', assignee: 'John D.' },
-    { id: 'INC-003', title: 'Suspicious Lateral Movement', status: 'Triaged', severity: 'Medium', time: '3 hours ago', assignee: 'System' },
-    { id: 'INC-004', title: 'Phishing Campaign Reported', status: 'Resolved', severity: 'Low', time: '5 hours ago', assignee: 'Alice M.' },
-    { id: 'INC-005', title: 'DDoS Attack on Main Gateway', status: 'In Progress', severity: 'Critical', time: '1 day ago', assignee: 'Security Team' },
-  ];
+export const dynamic = 'force-dynamic';
+
+export default async function IncidentsPage() {
+  const incidents = await getIncidents(100);
 
   return (
     <div className="space-y-6">
@@ -34,7 +31,13 @@ export default function IncidentsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {incidents.map((incident) => (
+              {incidents.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={7}>
+                    No incidents are stored in the database yet.
+                  </td>
+                </tr>
+              ) : incidents.map((incident) => (
                 <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{incident.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{incident.title}</td>
@@ -51,7 +54,7 @@ export default function IncidentsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{incident.assignee}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{incident.time}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.updatedAt ?? incident.createdAt)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                     <Link href={`/incidents/${incident.id}`} className="text-black font-bold hover:underline">VIEW</Link>
                   </td>

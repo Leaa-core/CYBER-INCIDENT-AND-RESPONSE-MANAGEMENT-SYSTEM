@@ -1,13 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShieldAlert, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { getDashboardOverview, formatRelativeTime } from '@/lib/incidents';
 
-const stats = [
-  { name: 'Active Incidents', value: '12', icon: ActivityIcon, alert: true },
-  { name: 'Critical Alerts', value: '3', icon: AlertIcon, alert: true },
-  { name: 'Resolved Today', value: '8', icon: CheckIcon, alert: false },
-  { name: 'Avg. Response', value: '14m', icon: TimeIcon, alert: false },
-];
+type StatCard = {
+  name: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  alert: boolean;
+};
 
 function ActivityIcon(props: any) {
   return <ShieldAlert {...props} />;
@@ -22,19 +23,20 @@ function TimeIcon(props: any) {
   return <Clock {...props} />;
 }
 
-const incidents = [
-  { id: 'INC-001', title: 'Unauthorized Access Attempt', status: 'In Progress', severity: 'Critical', time: '10 mins ago', assignee: 'Alice M.' },
-  { id: 'INC-002', title: 'Malware Detected on ENDPOINT-4', status: 'Investigating', severity: 'High', time: '1 hour ago', assignee: 'John D.' },
-  { id: 'INC-003', title: 'Suspicious Lateral Movement', status: 'Triaged', severity: 'Medium', time: '3 hours ago', assignee: 'System' },
-  { id: 'INC-004', title: 'Phishing Campaign Reported', status: 'Resolved', severity: 'Low', time: '5 hours ago', assignee: 'Alice M.' },
-];
+export const Dashboard = async () => {
+  const { incidents, stats } = await getDashboardOverview();
+  const cards: StatCard[] = [
+    { name: 'Active Incidents', value: String(stats.activeIncidents), icon: ActivityIcon, alert: true },
+    { name: 'Critical Alerts', value: String(stats.criticalAlerts), icon: AlertIcon, alert: true },
+    { name: 'Resolved Today', value: String(stats.resolvedToday), icon: CheckIcon, alert: false },
+    { name: 'Avg. Response', value: stats.avgResponse, icon: TimeIcon, alert: false },
+  ];
 
-export const Dashboard = () => {
   return (
     <div className="space-y-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {cards.map((stat) => (
           <div key={stat.name} className={`bg-white p-6 border ${stat.alert ? 'border-black' : 'border-gray-200'} rounded-lg shadow-sm flex flex-col justify-between`}>
             <div className="flex justify-between items-start">
               <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{stat.name}</p>
@@ -66,7 +68,13 @@ export const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {incidents.map((incident) => (
+              {incidents.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={6}>
+                    No incidents found in the database yet.
+                  </td>
+                </tr>
+              ) : incidents.map((incident) => (
                 <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{incident.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{incident.title}</td>
@@ -83,7 +91,7 @@ export const Dashboard = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{incident.assignee}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{incident.time}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">{formatRelativeTime(incident.updatedAt ?? incident.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
