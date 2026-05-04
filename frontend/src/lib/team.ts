@@ -4,6 +4,8 @@ export interface TeamMember {
   id: number;
   username: string;
   email: string;
+  roleId?: number;
+  roleName?: string;
 }
 
 export interface ResponseTeam {
@@ -18,7 +20,11 @@ export interface Role {
 
 export async function getTeamMembers(): Promise<TeamMember[]> {
   const pool = getDbPool();
-  const { rows } = await pool.query(`SELECT user_id, username, email FROM "user" ORDER BY user_id`);
+  const { rows } = await pool.query(
+    `SELECT u.user_id, u.username, u.email
+     FROM "user" u
+     ORDER BY u.user_id`
+  );
   return rows.map((r: Record<string, unknown>) => ({
     id: Number(r.user_id),
     username: String(r.username || ''),
@@ -28,7 +34,12 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
 
 export async function getTeamMemberById(id: number): Promise<TeamMember | null> {
   const pool = getDbPool();
-  const { rows } = await pool.query(`SELECT user_id, username, email FROM "user" WHERE user_id = $1`, [id]);
+  const { rows } = await pool.query(
+    `SELECT u.user_id, u.username, u.email
+     FROM "user" u
+     WHERE u.user_id = $1`,
+    [id]
+  );
   if (rows.length === 0) return null;
   const r = rows[0];
   return {
@@ -38,8 +49,9 @@ export async function getTeamMemberById(id: number): Promise<TeamMember | null> 
   };
 }
 
-export async function createTeamMember(input: { username: string; email: string }): Promise<TeamMember> {
+export async function createTeamMember(input: { username: string; email: string; roleId?: number }): Promise<TeamMember> {
   const pool = getDbPool();
+  // Note: roleId support pending database schema update (add role_id column to user table)
   const { rows } = await pool.query(
     `INSERT INTO "user" (username, email) VALUES ($1, $2) RETURNING *`,
     [input.username, input.email],
@@ -52,7 +64,7 @@ export async function createTeamMember(input: { username: string; email: string 
   };
 }
 
-export async function updateTeamMember(id: number, input: { username?: string; email?: string }): Promise<TeamMember> {
+export async function updateTeamMember(id: number, input: { username?: string; email?: string; roleId?: number }): Promise<TeamMember> {
   const pool = getDbPool();
   const sets: string[] = [];
   const values: unknown[] = [];
@@ -66,6 +78,7 @@ export async function updateTeamMember(id: number, input: { username?: string; e
     sets.push(`email = $${idx++}`);
     values.push(input.email);
   }
+  // Note: roleId support pending database schema update (add role_id column to user table)
 
   if (sets.length === 0) throw new Error('No fields to update');
 

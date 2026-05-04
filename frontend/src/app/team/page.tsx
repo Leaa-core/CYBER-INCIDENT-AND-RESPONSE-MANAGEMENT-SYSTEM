@@ -33,13 +33,14 @@ export default async function TeamPage() {
               <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">ID</th>
               <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Role</th>
               <th className="px-6 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {members.length === 0 ? (
               <tr>
-                <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={4}>
+                <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={5}>
                   No team members found in the database.
                 </td>
               </tr>
@@ -48,6 +49,7 @@ export default async function TeamPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{member.id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{member.username}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{member.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{member.roleName ?? '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                   <form action={deleteTeamMemberAction} className="inline">
                     <input type="hidden" name="id" value={member.id} />

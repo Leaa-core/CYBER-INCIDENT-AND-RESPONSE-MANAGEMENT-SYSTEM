@@ -12,10 +12,12 @@ function readValue(formData: FormData, key: string): string {
 export async function createTeamMemberAction(formData: FormData) {
   const username = readValue(formData, 'username').trim();
   const email = readValue(formData, 'email').trim();
+  const roleVal = readValue(formData, 'roleId').trim();
+  const roleId = roleVal ? parseInt(roleVal, 10) : undefined;
 
   if (!username || !email) throw new Error('Username and email are required');
 
-  await createTeamMember({ username, email });
+  await createTeamMember({ username, email, ...(roleId ? { roleId } : {}) });
 
   revalidatePath('/');
   revalidatePath('/team');
@@ -29,10 +31,13 @@ export async function updateTeamMemberAction(formData: FormData) {
 
   const username = readValue(formData, 'username').trim();
   const email = readValue(formData, 'email').trim();
+  const roleVal = readValue(formData, 'roleId').trim();
+  const roleId = roleVal ? parseInt(roleVal, 10) : undefined;
 
   await updateTeamMember(id, {
     ...(username ? { username } : {}),
     ...(email ? { email } : {}),
+    ...(roleId !== undefined ? { roleId } : {}),
   });
 
   revalidatePath('/');

@@ -1,8 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
 import { createTeamMemberAction } from '@/app/team/actions';
+import { getRoles } from '@/lib/team';
 
-export default function NewTeamMemberPage() {
+export default async function NewTeamMemberPage() {
+  const roles = await getRoles();
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center space-x-4">
@@ -36,6 +39,21 @@ export default function NewTeamMemberPage() {
               placeholder="e.g. john@company.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="roleId" className="block text-sm font-black text-gray-900 uppercase">Role</label>
+            <select
+              id="roleId"
+              name="roleId"
+              defaultValue=""
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium"
+            >
+              <option value="">Select a role</option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>{r.roleName}</option>
+              ))}
+            </select>
           </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end space-x-3">
