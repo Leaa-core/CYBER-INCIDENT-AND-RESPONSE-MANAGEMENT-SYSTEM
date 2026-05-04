@@ -49,7 +49,7 @@ export default async function TeamPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{member.id}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{member.username}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{member.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{member.roleName ?? '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{member.roleName ?? 'Unassigned'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
                   <form action={deleteTeamMemberAction} className="inline">
                     <input type="hidden" name="id" value={member.id} />

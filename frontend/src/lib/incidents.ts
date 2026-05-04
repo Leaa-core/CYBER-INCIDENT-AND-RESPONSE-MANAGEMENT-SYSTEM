@@ -11,6 +11,8 @@ export interface Incident {
   lastUpdated: string | null;
   userId?: number;
   assignedTo?: string;
+  assetId?: number;
+  compromisedAsset?: string;
 }
 
 export interface DashboardStats {
@@ -26,6 +28,7 @@ export interface DashboardStats {
 export interface CreateIncidentInput {
   incidentType: string;
   status?: string;
+  assetId?: number;
 }
 
 function formatDuration(milliseconds: number): string {
@@ -56,15 +59,18 @@ function normalizeIncident(row: Record<string, unknown>): Incident {
     lastUpdated: row.last_updated instanceof Date ? row.last_updated.toISOString() : (typeof row.last_updated === 'string' ? row.last_updated : null),
     userId: row.user_id != null ? Number(row.user_id) : undefined,
     assignedTo: row.assigned_username ? String(row.assigned_username) : (row.username ? String(row.username) : undefined),
+    assetId: row.asset_id != null ? Number(row.asset_id) : undefined,
+    compromisedAsset: row.compromised_asset_name ? String(row.compromised_asset_name) : (row.asset_name ? String(row.asset_name) : undefined),
   };
 }
 
 export async function getIncidents(limit = 50): Promise<Incident[]> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT i.*, u.username AS assigned_username
+    `SELECT i.*, u.username AS assigned_username, a.asset_name AS compromised_asset_name
      FROM incident i
      LEFT JOIN "user" u ON i.user_id = u.user_id
+     LEFT JOIN asset a ON i.asset_id = a.asset_id
      ORDER BY COALESCE(i.last_updated, i.reported_time) DESC NULLS LAST LIMIT $1`,
     [limit],
   );
@@ -77,9 +83,10 @@ export async function getIncidentById(id: string | number): Promise<Incident | n
 
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT i.*, u.username AS assigned_username
+    `SELECT i.*, u.username AS assigned_username, a.asset_name AS compromised_asset_name
      FROM incident i
      LEFT JOIN "user" u ON i.user_id = u.user_id
+     LEFT JOIN asset a ON i.asset_id = a.asset_id
      WHERE i.incident_id = $1`,
     [numericId]
   );
@@ -95,8 +102,11 @@ export async function getDashboardOverview(limit = 5): Promise<{
   const pool = getDbPool();
 
   const [incidentsResult, statsResult, alertsResult, assetsResult, teamResult] = await Promise.all([
-    pool.query(`SELECT * FROM incident
-               ORDER BY COALESCE(last_updated, reported_time) DESC NULLS LAST LIMIT $1`, [limit]),
+    pool.query(`SELECT i.*, u.username AS assigned_username, a.asset_name AS compromised_asset_name
+               FROM incident i
+               LEFT JOIN "user" u ON i.user_id = u.user_id
+               LEFT JOIN asset a ON i.asset_id = a.asset_id
+               ORDER BY COALESCE(i.last_updated, i.reported_time) DESC NULLS LAST LIMIT $1`, [limit]),
     pool.query(`SELECT 
       COUNT(*) FILTER (WHERE status NOT IN ('Resolved', 'Closed')) AS active_incidents,
       COUNT(*) AS total_incidents,
@@ -141,9 +151,9 @@ export async function getDashboardOverview(limit = 5): Promise<{
 export async function createIncident(input: CreateIncidentInput): Promise<Incident> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `INSERT INTO incident (incident_type, status, reported_time, last_updated) 
-     VALUES ($1, $2, NOW(), NOW()) RETURNING *`,
-    [input.incidentType, input.status || 'New'],
+    `INSERT INTO incident (incident_type, status, reported_time, last_updated, asset_id) 
+     VALUES ($1, $2, NOW(), NOW(), $3) RETURNING *`,
+    [input.incidentType, input.status || 'New', input.assetId ?? null],
   );
 
   if (!rows[0]) throw new Error('Failed to create incident');

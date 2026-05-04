@@ -1,14 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
 import { createIncidentAction } from '@/app/incidents/actions';
-import { getIncidentTypes, getIncidentStatuses } from '@/lib/lookups';
+import { getIncidentTypes, getIncidentStatuses, getAssets } from '@/lib/lookups';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewIncidentPage() {
-  const [incidentTypes, statuses] = await Promise.all([
+  const [incidentTypes, statuses, assets] = await Promise.all([
     getIncidentTypes(),
     getIncidentStatuses(),
+    getAssets(),
   ]);
 
   return (
@@ -47,6 +48,20 @@ export default async function NewIncidentPage() {
             >
               {statuses.map((s) => (
                 <option key={s.id} value={s.statusName}>{s.statusName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="assetId" className="block text-sm font-black text-gray-900 uppercase">Compromised Asset</label>
+            <select
+              id="assetId"
+              name="assetId"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black font-medium bg-white"
+            >
+              <option value="">Select an asset</option>
+              {assets.map((asset) => (
+                <option key={asset.id} value={asset.id}>{asset.assetName}</option>
               ))}
             </select>
           </div>

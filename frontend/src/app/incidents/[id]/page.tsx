@@ -141,6 +141,11 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
             </div>
 
             <div>
+              <p className="text-xs font-bold text-gray-500 uppercase">Compromised Asset</p>
+              <p className="font-medium text-gray-900 mt-1">{incident.compromisedAsset ?? 'Unassigned'}</p>
+            </div>
+
+            <div>
               <p className="text-xs font-bold text-gray-500 uppercase">Reported</p>
               <p className="font-medium text-gray-900 mt-1">{formatIncidentTimestamp(incident.reportedTime)}</p>
             </div>

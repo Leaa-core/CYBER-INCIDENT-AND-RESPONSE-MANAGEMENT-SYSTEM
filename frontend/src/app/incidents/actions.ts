@@ -11,9 +11,11 @@ function readValue(formData: FormData, key: string): string {
 }
 
 export async function createIncidentAction(formData: FormData) {
+  const assetIdValue = readValue(formData, 'assetId');
   const incident = await createIncident({
     incidentType: readValue(formData, 'incidentType'),
     status: readValue(formData, 'status') || 'New',
+    assetId: assetIdValue ? parseInt(assetIdValue, 10) : undefined,
   });
 
   revalidatePath('/');

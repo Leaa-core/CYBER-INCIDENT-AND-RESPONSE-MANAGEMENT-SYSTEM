@@ -23,6 +23,8 @@ export default async function IncidentsPage() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">ID</th>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Asset</th>
+                <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Assigned To</th>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Reported</th>
                 <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider">Last Updated</th>
@@ -32,7 +34,7 @@ export default async function IncidentsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {incidents.length === 0 ? (
                 <tr>
-                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={6}>
+                  <td className="px-6 py-12 text-center text-sm text-gray-500" colSpan={8}>
                     No incidents are stored in the database yet.
                   </td>
                 </tr>
@@ -40,6 +42,8 @@ export default async function IncidentsPage() {
                 <tr key={incident.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-black">{incident.displayId}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{incident.incidentType}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{incident.compromisedAsset ?? 'Unassigned'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{incident.assignedTo ?? 'Unassigned'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                       incident.status === 'Resolved' || incident.status === 'Closed' ? 'bg-gray-100 text-gray-800' : 'bg-black text-white'

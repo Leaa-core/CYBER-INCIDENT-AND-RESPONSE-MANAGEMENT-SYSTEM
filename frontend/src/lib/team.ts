@@ -21,22 +21,26 @@ export interface Role {
 export async function getTeamMembers(): Promise<TeamMember[]> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT u.user_id, u.username, u.email
+    `SELECT u.user_id, u.username, u.email, u.role_id, r.role_name
      FROM "user" u
+     LEFT JOIN role r ON u.role_id = r.role_id
      ORDER BY u.user_id`
   );
   return rows.map((r: Record<string, unknown>) => ({
     id: Number(r.user_id),
     username: String(r.username || ''),
     email: String(r.email || ''),
+    roleId: r.role_id != null ? Number(r.role_id) : undefined,
+    roleName: r.role_name ? String(r.role_name) : undefined,
   }));
 }
 
 export async function getTeamMemberById(id: number): Promise<TeamMember | null> {
   const pool = getDbPool();
   const { rows } = await pool.query(
-    `SELECT u.user_id, u.username, u.email
+    `SELECT u.user_id, u.username, u.email, u.role_id, r.role_name
      FROM "user" u
+     LEFT JOIN role r ON u.role_id = r.role_id
      WHERE u.user_id = $1`,
     [id]
   );
@@ -46,21 +50,23 @@ export async function getTeamMemberById(id: number): Promise<TeamMember | null> 
     id: Number(r.user_id),
     username: String(r.username || ''),
     email: String(r.email || ''),
+    roleId: r.role_id != null ? Number(r.role_id) : undefined,
+    roleName: r.role_name ? String(r.role_name) : undefined,
   };
 }
 
 export async function createTeamMember(input: { username: string; email: string; roleId?: number }): Promise<TeamMember> {
   const pool = getDbPool();
-  // Note: roleId support pending database schema update (add role_id column to user table)
   const { rows } = await pool.query(
-    `INSERT INTO "user" (username, email) VALUES ($1, $2) RETURNING *`,
-    [input.username, input.email],
+    `INSERT INTO "user" (username, email, role_id) VALUES ($1, $2, $3) RETURNING *`,
+    [input.username, input.email, input.roleId ?? null],
   );
   if (!rows[0]) throw new Error('Failed to create team member');
   return {
     id: Number(rows[0].user_id),
     username: String(rows[0].username || ''),
     email: String(rows[0].email || ''),
+    roleId: rows[0].role_id != null ? Number(rows[0].role_id) : undefined,
   };
 }
 
@@ -78,7 +84,10 @@ export async function updateTeamMember(id: number, input: { username?: string; e
     sets.push(`email = $${idx++}`);
     values.push(input.email);
   }
-  // Note: roleId support pending database schema update (add role_id column to user table)
+  if (input.roleId !== undefined) {
+    sets.push(`role_id = $${idx++}`);
+    values.push(input.roleId);
+  }
 
   if (sets.length === 0) throw new Error('No fields to update');
 
@@ -93,6 +102,7 @@ export async function updateTeamMember(id: number, input: { username?: string; e
     id: Number(rows[0].user_id),
     username: String(rows[0].username || ''),
     email: String(rows[0].email || ''),
+    roleId: rows[0].role_id != null ? Number(rows[0].role_id) : undefined,
   };
 }
 
