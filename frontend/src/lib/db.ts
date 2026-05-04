@@ -23,7 +23,9 @@ function createPool() {
   return new Pool({
     connectionString,
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined,
-    max: 5,
+    max: 1,                  // 1 connection per serverless function instance
+    idleTimeoutMillis: 10000, // release idle connections after 10s
+    connectionTimeoutMillis: 5000, // fail fast if can't connect in 5s
   });
 }
 
